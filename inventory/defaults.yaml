@@ -1,0 +1,11 @@
+---
+data:
+    domain: acme.local
+    serviceid: 654321
+    servicebw: 1000
+    LLF: True
+    QOS_type: Business2
+    globalid: 2600
+    cfm: True
+    EVPN: False
+    SRTE: True

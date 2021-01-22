@@ -1,0 +1,14 @@
+---
+# groups.yaml file
+# Strings were quoted to render better on the web
+cisco_ios:
+    platform: 'cisco_ios'
+
+arista:
+    platform: 'arista_eos'
+
+juniper:
+    platform: 'juniper_junos'     
+
+server:
+    platform: 'linux'

@@ -1,0 +1,88 @@
+{% if  host.data.interface.startswith('Gi') -%}
+{% set IntType = 'Gi' -%}
+{% else -%}
+{% set IntType = 'TE' -%}
+{% endif -%}
+{% if  host.defaults.data.QOS_type == 'Business3' -%}
+{% set TC = 3 -%}
+{% set EXP = 1 -%}
+{% elif host.defaults.data.QOS_type == 'Business1' -%}
+{% set TC = 5 -%}
+{% set EXP = 3 -%}
+{% elif host.defaults.data.QOS_type == 'Business2' -%}
+{% set TC = 4 -%}
+{% set EXP = 2 -%}
+{% elif host.defaults.data.QOS_type == 'Premium' -%}
+{% set TC = 6 -%}
+{% set EXP = 5 -%}
+{% elif host.defaults.data.QOS_type == 'Standard' -%}
+{% set TC = 2 -%}
+{% set EXP = 4 -%}
+{% else -%}
+{% endif -%}
+
+{# *******delete-intface-config******* #}
+    <config>
+        <interface-configurations xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-ifmgr-cfg">
+            <interface-configuration xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" nc:operation="replace">
+            <active>act</active>
+                <interface-name>{{ host.data.interface }}</interface-name>
+                <shutdown xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" nc:operation="create"/>
+            <lldp xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-ethernet-lldp-cfg">
+                <lldp-intf-enter>true</lldp-intf-enter>
+                <receive>
+                    <disable>true</disable>
+                </receive>
+                <transmit>
+                    <disable>true</disable>
+                </transmit>
+            </lldp>
+            </interface-configuration>
+        </interface-configurations>
+{# *******delete-l2vpn-xconnect-config ******* #}
+        <l2vpn xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-l2vpn-cfg">
+        <database>
+            <xconnect-groups>
+            <xconnect-group xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" nc:operation="remove">
+                <name>JBL5_JBL6_LE-{{ host.defaults.data.serviceid }}</name> 
+            </xconnect-group>
+            </xconnect-groups>
+        </database>
+        </l2vpn>
+{# *******delete-ethernet-cfm-config******* #}
+        <ethernet-features xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-l2-eth-infra-cfg">
+            <cfm xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-ethernet-cfm-cfg">
+                <domains>
+                <domain>
+                    <domain>COLT-1</domain>
+                    <services>
+                    <service xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" nc:operation="remove">
+                        <service>JBL5_JBL6_LE-{{ host.defaults.data.serviceid }}</service>
+                    </service>
+                    </services>
+                </domain>
+                </domains>
+            </cfm>
+        </ethernet-features>
+{# *******delete-evpn-evi-config******* #}
+        <evpn xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-l2vpn-cfg">
+            <evpn-tables>
+                <evpn-instances>
+                <evpn-instance xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" nc:operation="remove">
+                    <vpn-id>{{ host.data.evi }}</vpn-id>
+                <encapsulation>evpn-encapsulation-mpls</encapsulation>
+                <side>evpn-side-regular</side>
+                </evpn-instance>
+                </evpn-instances>
+            </evpn-tables>
+        </evpn>
+{# *******delete-Policy-map-configuration ******* #}
+        <policy-manager xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-policymgr-cfg">
+            <policy-maps>
+                <policy-map xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" nc:operation="remove">
+                <type>qos</type>
+                <name>BW-{{ host.defaults.data.servicebw }}Mbps-Class-{{ host.defaults.data.QOS_type }}-{{ IntType }}_JBL</name>
+                </policy-map>
+            </policy-maps>
+        </policy-manager>
+    </config>

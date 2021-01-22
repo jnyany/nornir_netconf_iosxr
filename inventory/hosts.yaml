@@ -1,0 +1,48 @@
+---
+rtr1:
+  hostname: 10.91.126.115
+  username: jblokesh
+  password: L0ck3d@down
+  data:
+    interface: TenGigE0/0/0/29
+    localmepid: 1
+    remotemepid: 2
+    rd: 1600
+    evi: 2600
+    xrsw: 7.1.2
+  connection_options: 
+    scrapli:
+      platform: cisco_iosxr
+      port: 22
+      extras:
+        ssh_config_file: True
+        auth_strict_key: False
+    scrapli_netconf:
+      port: 830
+      extras:
+        ssh_config_file: True
+        auth_strict_key: False
+  
+rtr2:
+  hostname: 10.91.126.204
+  username: jblokesh
+  password: L0ck3d@down
+  data:
+    interface: TenGigE0/0/0/33
+    localmepid: 2
+    remotemepid: 1
+    rd: 2600
+    evi: 2600
+    xrsw: 7.1.2
+  connection_options: 
+    scrapli:
+      platform: cisco_iosxr
+      port: 22
+      extras:
+        ssh_config_file: True
+        auth_strict_key: False
+    scrapli_netconf:
+      port: 830
+      extras:
+        ssh_config_file: True
+        auth_strict_key: False

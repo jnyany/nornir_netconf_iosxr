@@ -1,0 +1,292 @@
+{% if  host.data.interface.startswith('Gi') -%}
+{% set IntType = 'Gi' -%}
+{% else -%}
+{% set IntType = 'TE' -%}
+{% endif -%}
+{% if  host.defaults.data.QOS_type == 'Business3' -%}
+{% set TC = 3 -%}
+{% set EXP = 1 -%}
+{% elif host.defaults.data.QOS_type == 'Business1' -%}
+{% set TC = 5 -%}
+{% set EXP = 3 -%}
+{% elif host.defaults.data.QOS_type == 'Business2' -%}
+{% set TC = 4 -%}
+{% set EXP = 2 -%}
+{% elif host.defaults.data.QOS_type == 'Premium' -%}
+{% set TC = 6 -%}
+{% set EXP = 5 -%}
+{% elif host.defaults.data.QOS_type == 'Standard' -%}
+{% set TC = 2 -%}
+{% set EXP = 4 -%}
+{% else -%}
+{% endif -%}
+
+{# *******Service configuration template for LLF TenGigE and HunGigE ******* #}
+{# *******Interface configuration ******* #}
+  <config>
+    <interface-configurations xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-ifmgr-cfg">
+      <interface-configuration>
+        <active>act</active>
+        <interface-name>{{ host.data.interface }}</interface-name>
+        <shutdown xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" nc:operation="remove"/>
+        <description>IfType[JBL-Access] LinkID[LU-{{ host.defaults.data.serviceid }}]</description>
+        <mtus>
+          <mtu>
+          {% if host.data.interface.startswith('Gi') -%} 
+          <owner>GigabitEthernet</owner>
+          {% elif host.data.interface.startswith('Te') -%}
+          <owner>TenGigE</owner>  
+          {% else %}
+          <owner>HundredGigE</owner>
+          {% endif %}
+          <mtu>9100</mtu>
+          </mtu>
+        </mtus>
+        <lldp xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-ethernet-lldp-cfg">
+          <lldp-intf-enter>true</lldp-intf-enter>
+          <receive>
+            <disable>true</disable>
+          </receive>
+          <transmit>
+            <disable>true</disable>
+          </transmit>
+        </lldp>
+        <statistics xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-statsd-cfg">
+          <load-interval>30</load-interval>
+        </statistics>
+        <ethernet-features xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-l2-eth-infra-cfg">
+          <cfm xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-ethernet-cfm-cfg">
+            <domains>
+              <domain>
+                <domain>COLT-1</domain>
+                <mep>
+                  <mep-properties>
+                    <service>JBL5_JBL6_LE-{{ host.defaults.data.serviceid }}</service>
+                    <mep-id>{{ host.data.localmepid }}</mep-id>
+                  </mep-properties>
+                  <cos>{{ EXP }}</cos>
+                  <sla-profile-target-mep-ids>
+                    <sla-profile-target-mep-id>
+                      <profile>DMM{{ EXP }}</profile>
+                      <target-mep-id>{{ host.data.remotemepid }}</target-mep-id>
+                    </sla-profile-target-mep-id>
+                    <sla-profile-target-mep-id>
+                      <profile>SLM{{ EXP }}</profile>
+                      <target-mep-id>{{ host.data.remotemepid }}</target-mep-id>
+                    </sla-profile-target-mep-id>
+                  </sla-profile-target-mep-ids>
+                </mep>
+              </domain>
+            </domains>
+          </cfm>
+        </ethernet-features>
+        <l2-transport xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-l2vpn-cfg">
+          <pac xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-qos-ma-cfg">
+            <qos>
+              <input>
+                <service-policy>
+                  <service-policy-name>BW-{{ host.defaults.data.servicebw }}Mbps-Class-{{ host.defaults.data.QOS_type }}-{{ IntType }}_JBL</service-policy-name>
+                </service-policy>
+              </input>
+            </qos>
+          </pac>
+          <enabled/>
+          <propagate-remote-status xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-l2-eth-infra-cfg"/>
+        </l2-transport>
+      </interface-configuration>
+    </interface-configurations>
+{# *******egr policy-map configuration ******* #} 
+    <policy-manager xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-policymgr-cfg">
+      <policy-maps>
+        <policy-map>
+          <type>qos</type>
+          <name>egr</name>
+          <policy-map-rule>
+            <class-name>class-default</class-name>
+            <class-type>qos</class-type>
+            <min-bandwidth>
+              <value>100</value>
+              <unit>percent</unit>
+            </min-bandwidth>
+          </policy-map-rule>
+        </policy-map>
+      </policy-maps>
+    </policy-manager>
+{# *******Class-map configuration ******* #}
+    <policy-manager xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-policymgr-cfg">
+      <class-maps>
+        <class-map>
+          <type>qos</type>
+          <name>{{ host.defaults.data.QOS_type }}-PCP-{{ TC }}_JBL</name>
+          <class-map-mode-match-any/>
+          <match>
+            <cos>{{ TC }}</cos>
+          </match>
+        </class-map>
+      </class-maps>
+    </policy-manager>
+{# *******Policy-map configuration ******* #}
+    <policy-manager xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-policymgr-cfg">
+      <policy-maps>
+        <policy-map>
+          <type>qos</type>
+          <name>BW-{{ host.defaults.data.servicebw }}Mbps-Class-{{ host.defaults.data.QOS_type }}-{{ IntType }}_JBL</name>
+          <policy-map-rule>
+            <class-name>{{ host.defaults.data.QOS_type }}-PCP-{{ TC }}_JBL</class-name>
+            <class-type>qos</class-type>
+            <police>
+              <rate>
+              {% if (host.defaults.data.servicebw) == 1000 %}
+                <value>{{ host.defaults.data.servicebw }}</value>
+              {% else %}
+                <value>{{ ((host.defaults.data.servicebw) + (host.defaults.data.servicebw*2)/100) |round|int }}</value>
+              {% endif %}
+                <units>mbps</units>
+              </rate>
+            </police>
+            <set>
+              <traffic-class>{{ TC }}</traffic-class>
+              <qos-group>{{ EXP }}</qos-group>
+            </set>
+          </policy-map-rule>
+        </policy-map>
+      </policy-maps>
+    </policy-manager>
+{# *******l2vpn xconnect configuration ******* #}
+    <l2vpn xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-l2vpn-cfg">
+      <database>
+        <xconnect-groups>
+          <xconnect-group>
+            <name>JBL5_JBL6_LE-{{ host.defaults.data.serviceid }}</name>
+            <p2p-xconnects>
+              <p2p-xconnect>
+                <name>JBL5_JBL6_LE-{{ host.defaults.data.serviceid }}</name>
+                <attachment-circuits>
+                  <attachment-circuit>
+                    <name>{{ host.data.interface }}</name>
+                    <enable/>
+                  </attachment-circuit>
+                </attachment-circuits>
+                <pseudowire-evpns>
+                  <pseudowire-evpn>
+                    <eviid>{{ host.data.evi }}</eviid>
+                    <remote-acid>{{ host.data.evi }}</remote-acid>
+                    <source-acid>{{ host.data.evi }}</source-acid>
+                  </pseudowire-evpn>
+                </pseudowire-evpns>
+              </p2p-xconnect>
+            </p2p-xconnects>
+          </xconnect-group>
+        </xconnect-groups>
+      </database>
+    </l2vpn>
+{# *******evpn-evi configuration ******* #}
+  {% if host.data.xrsw == '7.1.2' %}
+    <evpn xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-l2vpn-cfg">
+      <evpn-tables>
+        <evpn-instances>
+          <evpn-instance>
+            <vpn-id>{{ host.data.evi }}</vpn-id>
+            <encapsulation>evpn-encapsulation-mpls</encapsulation>
+            <side>evpn-side-regular</side>
+            <evpn-instance-bgp-auto-discovery>
+              <enable/>
+              <evpn-route-distinguisher>
+                <type>four-byte-as</type>
+                <as>8220001</as>
+                <as-index>{{ host.data.rd }}</as-index>
+              </evpn-route-distinguisher>
+              <evpn-route-targets>
+                <evpn-route-target-as>
+                  <format>four-byte-as</format>
+                  <role>import</role>
+                  <as>8220001</as>
+                  <as-index>{{ host.data.evi }}</as-index>
+                  <stitching>no-stitching</stitching>
+                </evpn-route-target-as>
+                <evpn-route-target-as>
+                  <format>four-byte-as</format>
+                  <role>export</role>
+                  <as>8220001</as>
+                  <as-index>{{ host.data.evi }}</as-index>
+                  <stitching>no-stitching</stitching>
+                </evpn-route-target-as>
+              </evpn-route-targets>
+            </evpn-instance-bgp-auto-discovery>
+          </evpn-instance>
+        </evpn-instances>
+      </evpn-tables>
+    </evpn>
+  {% elif host.data.xrsw == '6.6.3' %}
+       <evpn xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-l2vpn-cfg">
+      <evpn-tables>
+        <evpnevis>
+          <evpnevi>
+            <eviid>{{ host.data.evi }}</eviid>
+            <evpnev-ibgp-auto-discovery>
+              <enable/>
+              <evpn-route-distinguisher>
+                <type>four-byte-as</type>
+                <as>8220001</as>
+                <as-index>{{ host.data.rd }}</as-index>
+              </evpn-route-distinguisher>
+              <evpn-route-targets>
+                <evpn-route-target-as>
+                  <format>four-byte-as</format>
+                  <role>import</role>
+                  <as>8220001</as>
+                  <as-index>{{ host.data.evi }}</as-index>
+                  <stitching>no-stitching</stitching>
+                </evpn-route-target-as>
+                <evpn-route-target-as>
+                  <format>four-byte-as</format>
+                  <role>export</role>
+                  <as>8220001</as>
+                  <as-index>{{ host.data.evi }}</as-index>
+                  <stitching>no-stitching</stitching>
+                </evpn-route-target-as>
+              </evpn-route-targets>
+            </evpnev-ibgp-auto-discovery>
+          </evpnevi>
+        </evpnevis>
+      </evpn-tables>
+    </evpn>
+  {% else %}
+  {% endif %}
+{# *******ethernet-cfm configuration ******* #}
+    <ethernet-features xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-l2-eth-infra-cfg">
+      <cfm xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-ethernet-cfm-cfg">
+        <domains>
+          <domain>
+            <domain>COLT-1</domain>
+            <services>
+              <service>
+                <service>JBL5_JBL6_LE-{{ host.defaults.data.serviceid }}</service>
+                <service-properties>
+                  <service-type>p2p-cross-connect</service-type>
+                  <group-name>JBL5_JBL6_LE-{{ host.defaults.data.serviceid }}</group-name>
+                  <switching-name>JBL5_JBL6_LE-{{ host.defaults.data.serviceid }}</switching-name>
+                  <short-ma-name-format>icc-based</short-ma-name-format>
+                  <short-ma-name-icc>LE</short-ma-name-icc>
+                  <short-ma-name-umc>XXX-{{ host.defaults.data.serviceid }}</short-ma-name-umc>
+                </service-properties>
+                <continuity-check-interval>
+                  <ccm-interval>1s</ccm-interval>
+                </continuity-check-interval>
+                <cross-check>
+                  <cross-check-meps>
+                    <cross-check-mep>
+                      <mep-id>{{ host.data.remotemepid }}</mep-id>
+                    </cross-check-mep>
+                  </cross-check-meps>
+                </cross-check>
+                <log-continuity-check-errors/>
+                <log-cross-check-errors/>
+                <log-continuity-check-state-changes/>
+              </service>
+            </services>
+          </domain>
+        </domains>
+      </cfm>
+    </ethernet-features>
+  </config>
