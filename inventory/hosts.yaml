@@ -1,8 +1,8 @@
 ---
 rtr1:
   hostname: 10.91.126.115
-  username: jblokesh
-  password: L0ck3d@down
+  username: "username"
+  password: "password"
   data:
     interface: TenGigE0/0/0/29
     localmepid: 1
@@ -25,8 +25,8 @@ rtr1:
   
 rtr2:
   hostname: 10.91.126.204
-  username: jblokesh
-  password: L0ck3d@down
+  username: "username"
+  password: "password"
   data:
     interface: TenGigE0/0/0/33
     localmepid: 2
